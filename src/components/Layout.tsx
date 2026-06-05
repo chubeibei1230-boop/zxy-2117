@@ -7,6 +7,7 @@ import {
   LogOut,
   Menu,
   Sprout,
+  Grid3X3,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/auth";
 import { useAppStore } from "@/stores/app";
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { to: "/", label: "仪表盘", icon: LayoutDashboard },
   { to: "/zones", label: "棚区管理", icon: Trees },
+  { to: "/slot-schedule", label: "盘位调度", icon: Grid3X3 },
   { to: "/tasks", label: "任务管理", icon: ClipboardList },
   { to: "/users", label: "用户管理", icon: Users, adminOnly: true },
 ];

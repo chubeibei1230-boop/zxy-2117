@@ -23,6 +23,7 @@ import {
   XCircle,
   Loader2,
   AlertTriangle,
+  Flag,
 } from "lucide-react";
 
 const statusIcons: Record<TaskStatus, React.ReactNode> = {
@@ -39,17 +40,20 @@ export default function Dashboard() {
   const [zones, setZones] = useState<ZoneOut[]>([]);
   const [users, setUsers] = useState<UserOut[]>([]);
   const [tasks, setTasks] = useState<TaskOut[]>([]);
+  const [exceptions, setExceptions] = useState<Record<string, number>>({});
 
   useEffect(() => {
     Promise.all([
       dashboardApi.stats(),
       dashboardApi.recent(),
+      dashboardApi.exceptions(),
       zonesApi.list(),
       usersApi.list(),
       tasksApi.list(),
-    ]).then(([s, r, z, u, t]) => {
+    ]).then(([s, r, e, z, u, t]) => {
       setStats(s);
       setRecent(r);
+      setExceptions(e.by_zone || {});
       setZones(z);
       setUsers(u);
       setTasks(t);
@@ -147,9 +151,21 @@ export default function Dashboard() {
     ],
   };
 
+  const totalAbnormal = Object.values(exceptions).reduce((a, b) => a + b, 0);
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-[#1B5E20]">仪表盘</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-[#1B5E20]">仪表盘</h2>
+        {totalAbnormal > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
+            <Flag className="w-4 h-4 text-red-500" />
+            <span className="text-sm text-red-700 font-medium">
+              {totalAbnormal} 个异常盘位待处理
+            </span>
+          </div>
+        )}
+      </div>
 
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

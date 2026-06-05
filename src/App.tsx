@@ -8,6 +8,7 @@ import ZoneDetail from "@/pages/ZoneDetail";
 import Tasks from "@/pages/Tasks";
 import TaskDetail from "@/pages/TaskDetail";
 import Users from "@/pages/Users";
+import SlotSchedule from "@/pages/SlotSchedule";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/zones/:id" element={<ZoneDetail />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/tasks/:id" element={<TaskDetail />} />
+          <Route path="/slot-schedule" element={<SlotSchedule />} />
           <Route path="/users" element={<Users />} />
         </Route>
       </Routes>
