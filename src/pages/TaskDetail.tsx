@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { tasksApi, zonesApi, usersApi } from "@/services/api";
+import { useAuthStore } from "@/stores/auth";
 import {
   TASK_STATUS_LABELS,
   TASK_STATUS_COLORS,
@@ -32,6 +33,13 @@ export default function TaskDetail() {
   const [task, setTask] = useState<TaskDetailOut | null>(null);
   const [zones, setZones] = useState<ZoneOut[]>([]);
   const [users, setUsers] = useState<UserOut[]>([]);
+  const { user } = useAuthStore();
+
+  const roleAllowedActions: Record<string, string[]> = {
+    admin: ["start", "submit_review", "approve", "reject", "cancel"],
+    worker: ["start", "submit_review", "cancel"],
+    reviewer: ["approve", "reject"],
+  };
 
   const [editSlotId, setEditSlotId] = useState<number | null | undefined>(undefined);
   const [editAssigneeId, setEditAssigneeId] = useState<number | null | undefined>(undefined);
@@ -124,7 +132,9 @@ export default function TaskDetail() {
       </div>
 
       <div className="flex gap-1.5">
-        {transitionButtons[task.status].map((btn) => (
+        {transitionButtons[task.status]
+          .filter((btn) => !user || roleAllowedActions[user.role]?.includes(btn.action))
+          .map((btn) => (
           <button
             key={btn.action}
             onClick={() => handleTransition(btn.action)}

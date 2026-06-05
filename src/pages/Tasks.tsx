@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Eye,
 } from "lucide-react";
+import { useAuthStore } from "@/stores/auth";
 import { cn } from "@/lib/utils";
 
 export default function Tasks() {
@@ -33,6 +34,13 @@ export default function Tasks() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  const roleAllowedActions: Record<string, string[]> = {
+    admin: ["start", "submit_review", "approve", "reject", "cancel"],
+    worker: ["start", "submit_review", "cancel"],
+    reviewer: ["approve", "reject"],
+  };
 
   const load = useCallback(() => {
     Promise.all([
@@ -202,7 +210,9 @@ export default function Tasks() {
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
-                    {transitionButtons[task.status].map((btn) => (
+                    {transitionButtons[task.status]
+                      .filter((btn) => !user || roleAllowedActions[user.role]?.includes(btn.action))
+                      .map((btn) => (
                       <button
                         key={btn.action}
                         onClick={() => handleTransition(task.id, btn.action)}

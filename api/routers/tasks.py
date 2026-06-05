@@ -134,7 +134,7 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), c
         TaskHistory.undone == True,
     ).all()
     for entry in undone_entries:
-        entry.undone = True
+        db.delete(entry)
 
     for field_name, new_value in update_data.items():
         if field_name in TRACKED_FIELDS:
@@ -142,14 +142,24 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db), c
             if old_value != new_value:
                 record_history(task, field_name, old_value, new_value, db)
 
+    old_slot_id = getattr(task, "slot_id", None)
+    
     for key, value in update_data.items():
         setattr(task, key, value)
 
     task.updated_at = datetime.utcnow()
 
     if "slot_id" in update_data:
-        if task.slot_id:
-            slot = db.query(Slot).filter(Slot.id == task.slot_id).first()
+        new_slot_id = task.slot_id
+        
+        if old_slot_id and old_slot_id != new_slot_id:
+            old_slot = db.query(Slot).filter(Slot.id == old_slot_id).first()
+            if old_slot:
+                old_slot.status = "empty"
+                old_slot.current_task_id = None
+        
+        if new_slot_id:
+            slot = db.query(Slot).filter(Slot.id == new_slot_id).first()
             if slot:
                 slot.status = "in_use"
                 slot.current_task_id = task.id
@@ -169,6 +179,15 @@ def transition_task(task_id: int, data: TaskTransition, db: Session = Depends(ge
     action = data.action
     if action not in TRANSITION_ACTION_MAP:
         raise HTTPException(status_code=400, detail=f"无效操作: {action}")
+
+    role_actions = {
+        "admin": {"start", "submit_review", "approve", "reject", "cancel"},
+        "worker": {"start", "submit_review", "cancel"},
+        "reviewer": {"approve", "reject"},
+    }
+    allowed_actions = role_actions.get(current_user.role, set())
+    if action not in allowed_actions:
+        raise HTTPException(status_code=403, detail=f"角色 {current_user.role} 无权执行 {action} 操作")
 
     required_from, target_status = TRANSITION_ACTION_MAP[action]
 
@@ -231,7 +250,24 @@ def undo_task(task_id: int, db: Session = Depends(get_db), current_user: User = 
 
     entry.undone = True
     old_value = entry.old_value
+    new_value = entry.new_value
     field_name = entry.field_name
+
+    if field_name == "slot_id":
+        new_slot_id_int = int(new_value) if new_value and new_value != "None" else None
+        old_slot_id_int = int(old_value) if old_value and old_value != "None" else None
+        
+        if new_slot_id_int:
+            new_slot = db.query(Slot).filter(Slot.id == new_slot_id_int).first()
+            if new_slot:
+                new_slot.status = "empty"
+                new_slot.current_task_id = None
+        
+        if old_slot_id_int:
+            old_slot = db.query(Slot).filter(Slot.id == old_slot_id_int).first()
+            if old_slot:
+                old_slot.status = "in_use"
+                old_slot.current_task_id = task.id
 
     if field_name in ("slot_id", "assignee_id"):
         setattr(task, field_name, int(old_value) if old_value and old_value != "None" else None)
@@ -265,7 +301,24 @@ def redo_task(task_id: int, db: Session = Depends(get_db), current_user: User = 
 
     entry.undone = False
     new_value = entry.new_value
+    old_value = entry.old_value
     field_name = entry.field_name
+
+    if field_name == "slot_id":
+        old_slot_id_int = int(old_value) if old_value and old_value != "None" else None
+        new_slot_id_int = int(new_value) if new_value and new_value != "None" else None
+        
+        if old_slot_id_int:
+            old_slot = db.query(Slot).filter(Slot.id == old_slot_id_int).first()
+            if old_slot:
+                old_slot.status = "empty"
+                old_slot.current_task_id = None
+        
+        if new_slot_id_int:
+            new_slot = db.query(Slot).filter(Slot.id == new_slot_id_int).first()
+            if new_slot:
+                new_slot.status = "in_use"
+                new_slot.current_task_id = task.id
 
     if field_name in ("slot_id", "assignee_id"):
         setattr(task, field_name, int(new_value) if new_value and new_value != "None" else None)
